@@ -1,0 +1,101 @@
+Q.3 Design a Django application: A public site in which user can pick their favourite 
+programming language and vote.
+
+Ans ->
+
+1) Create a new Django app:
+python manage.py startapp poll
+
+
+2)Define the model in poll/models.py:
+from django.db import models
+
+class ProgrammingLanguage(models.Model):
+    name = models.CharField(max_length=100)
+    votes = models.IntegerField(default=0)
+
+    def __str__(self):
+        return self.name
+
+3)Run migrations and create the database tables:
+python manage.py makemigrations
+python manage.py migrate
+
+
+4)Create a Django form in poll/forms.py:
+from django import forms
+from .models import ProgrammingLanguage
+
+class VoteForm(forms.ModelForm):
+    class Meta:
+        model = ProgrammingLanguage
+        fields = []
+
+5) Define views in poll/views.py:
+from django.shortcuts import render, get_object_or_404, redirect
+from .models import ProgrammingLanguage
+from .forms import VoteForm
+
+def index(request):
+    languages = ProgrammingLanguage.objects.all()
+    return render(request, 'poll/index.html', {'languages': languages})
+
+def vote(request, language_id):
+    language = get_object_or_404(ProgrammingLanguage, pk=language_id)
+
+    if request.method == 'POST':
+        form = VoteForm(request.POST, instance=language)
+        if form.is_valid():
+            form.save()
+            return redirect('poll:index')
+    else:
+        form = VoteForm(instance=language)
+
+    return render(request, 'poll/vote.html', {'language': language, 'form': form})
+
+6) Create templates:
+-Create poll/templates/poll/index.html:
+
+<h1>Programming Languages Poll</h1>
+<ul>
+{% for language in languages %}
+    <li>{{ language.name }} - Votes: {{ language.votes }} <a href="{% url 'poll:vote' language.id %}">Vote</a></li>
+{% endfor %}
+</ul>
+
+-Create poll/templates/poll/vote.html:
+
+<h1>Vote for {{ language.name }}</h1>
+<form method="post" action="{% url 'poll:vote' language.id %}">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Vote</button>
+</form>
+
+7) Define URLs in poll/urls.py:
+
+from django.urls import path
+from . import views
+
+app_name = 'poll'
+urlpatterns = [
+    path('', views.index, name='index'),
+    path('<int:language_id>/vote/', views.vote, name='vote'),
+]
+
+8) Include the app URLs in the project's urls.py:
+
+from django.contrib import admin
+from django.urls import include, path
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    path('poll/', include('poll.urls')),
+]
+
+
+9) Run the development server:
+python manage.py runserver
+
+
+10) Visit http://127.0.0.1:8000/poll/ in your browser to see the poll application.
